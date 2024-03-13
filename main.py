@@ -115,8 +115,27 @@ def test_all_input_files():
     if not os.path.exists(REF_ADDRESS):
         os.makedirs(REF_ADDRESS)
 
-    if len(get_file_data_file_list()) > 0:
+    data_file_list = get_file_data_file_list()
+    if len(data_file_list) > 0:
         is_data_exist = True
+        #
+        # testing all: takes too much times.
+        #
+        # for file_name in data_file_list:
+        #     if file_name[-5:] == str("file.fastq.gz")[-5:]:
+        #         read_raw_iter = SeqIO.parse(gzip.open(str(os.path.join(DATA_ADDRESS, file_name)), "rt"), "fastq")
+        #     elif file_name[-5:] == str(".fastq")[-5:]:
+        #         read_raw_iter = SeqIO.parse(os.path.join(DATA_ADDRESS, file_name), "fastq")
+        #     else:
+        #         continue
+        #
+        #     for i, read in enumerate(read_raw_iter):
+        #         seq = str(read.seq)
+        #         for a in seq:
+        #             if a not in 'ATGCatgcNX':
+        #                 print(read.name, seq)
+        #                 print("Something is wrong with read")
+        #         print(f"\r {i + 1}, {read.name}, {file_name}", end="")
 
     if os.path.exists(GUIDE_RNA_SET_ADDRESS):
         try:
@@ -124,7 +143,7 @@ def test_all_input_files():
             seq_iter = SeqIO.parse(GUIDE_RNA_SET_ADDRESS, 'fasta')
             for seq in seq_iter:
                 for a in str(seq.seq):
-                    if a not in 'ATGCatgc':
+                    if a not in 'ATGCatgcN':
                         start = False
             is_guide_rna_exist = start
         except (TypeError, ValueError, PermissionError):
@@ -244,9 +263,12 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
     # # # count total number of finished number of reads,
     # # # and check the time of initiation
     '''This function will make a text print: opening large file takes some time'''
+    before_start_time = datetime.datetime.now()
     total_reads_count, reads_count_list = get_total_number_of_reads(data_file_list=data_file_list)
     finish_reads_count = 0
     start_time = datetime.datetime.now()
+
+    print("counting all reads: ", start_time - before_start_time)
     start_time_for_file_before = datetime.datetime.now()
     start_time_for_file = datetime.datetime.now()
 

@@ -1,0 +1,15 @@
+
+
+
+
+main:
+
+    do set_all_variables(inserted_variables)
+
+    is_good_to_go = test_all_input_files_with_message() : testing existence of data file, and valid ref sequences.
+    if not is_good_to_go:
+        return -1
+
+    data_file_list = get_valid_data_file_names_list() : return valid data file names, ignoring set-keywords
+
+
