@@ -1,6 +1,53 @@
 
 
 
+Identified = Aligned and Indel-confirmed?
+Aligned += Indel-confirmed?
+
+Class
+    Aligned_Key
+    Aligned_Read
+    Indel_Type
+
+    Genotyper_for_Reference
+    Genotype
+
+
+
+get_key_from_seq():
+
+    seq = seq.replace('N', '')
+
+    seq_key = seq[PADDING:-PADDING]
+    seq_key_hashmap[seq_key] = None
+
+
+get_key_list_of_all_seq():
+
+    seq_hashmap = dict()
+    for file_no, file_name in read_file_list:
+
+        read_raw_list = get_read_raw_list(file_name)
+
+        for read_raw in read_raw_list:
+
+            # add hashmap key
+            seq = str(read_raw.seq)
+            seq_key = get_key_from_seq(seq)
+
+            seq_hashmap[seq_key] = None
+
+    seq_key_list = list(seq_hashmap.keys())
+    return seq_key_list
+
+
+get_aligned_hashmap(seq_key_list, reference_list):
+
+    for seq_key in seq_key_list:
+
+        aligned_seq_key = get_best_aligned_key(seq, reference_list)
+
+        seq_key_hashmap[seq_key] = aligned_seq_key
 
 main:
 
@@ -13,40 +60,39 @@ main:
     read_file_list = get_valid_data_file_names_list() : return valid data file names, ignoring set-keywords
     reference_list = get_reference_list_from_file() : return references, in the files in ref
 
-    total_reads_count_for_time_estimation = get_total_reads_count(read_file_list) : 50000 per sec, count all read_file in read_file_list by opening it
-    finished_reads_count_for_time_estimation = 0
+    seq_key_list = get_key_list_of_all_seq(file_list, etc) : dict(seq_key -> None) to make hashmap
 
+    seq_aligned_hashmap = get_aligned_hashmap(seq_key_list, reference_list) : dict(seq_key -> Aligned_Key)
 
-    seq_hashmap = dict()
+    for file in file_list:
+
+        read_raw_list = get_read_raw_list(file_name)
+        aligned_read_list = get_aligned_read_list(seq_aligned_hashmap, read_raw_list)
 
     for file_no, file_name in read_file_list:
+
+        indel_counter_list = []
+        for reference in reference_list:
+            indel_counter = Genotyper_for_Reference(reference)
+            indel_counter_list.append(indel_counter)
 
         read_raw_list = get_read_raw_list(file_name)
 
         for read_raw in read_raw_list:
 
-            # add hashmap key
             seq = str(read_raw.seq)
+            seq = seq.replace('N', '')
+
             seq_key = seq[PADDING:-PADDING]
-            seq_key_hashmap[seq_key] = None
-
-
-    for seq_key in seq_key_hashmap.keys():
-
-        aligned_key = get_best_aligned_key(seq, reference_list)
-
-        seq_key_hashmap[focusing_seq] = aligned_key
-
-
-    for file_no, file_name in read_file_list:
+            aligned_seq_key = seq_key_hashmap[seq_key]
 
 
 
-        indel_counter_list = []
-        for reference in reference_list:
-            indel_counter = Indel_Counter_For_Reference(reference)
-            indel_counter_list.append(indel_counter)
+
+
+
 
 
         line_set_list = []
         for read_raw in read_raw_list:
+
