@@ -12,11 +12,15 @@ Dependency:
 
 ## TODO Stack
 
-- Build Pseudocode for using 'Hashmap' to shorten the calc time(10%).
+- Build Pseudocode for using 'Hashmap' to shorten the calc time(40%).
 
-- Make the code work
+- Rename the classes.
 
-- Benchmarking on the server: CRISPResso2 vs CNS-Genotyper 1.5
+- gRNA-PAM match: Set the Position at Reference class!!!
+
+- Make the code work...!
+
+- Benchmarking: CRISPResso2 vs CNS-Genotyper 1.5
 
 - If memory issue exists: Try using SQLite for Memoization!
 
