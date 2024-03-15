@@ -14,6 +14,19 @@ Class
     Genotype
 
 
+class Indel_Type
+    str type
+    int indel_i
+    int indel_d
+    int indel_pos
+    int indel_length
+    str indel_seq
+
+    init(read_line, ref_line, etc)
+
+        read_indel_type()
+
+
 class Reference
     str name
     str ref_seq
@@ -43,15 +56,56 @@ class Aligned
     str phred_line
     float score
     int score_int
+    Indel indel
 
 
 class Aligned_Key(inherit Aligned)
     init(Reference ref, str key_seq):
 
-    ref_seq = ref.ref_seq
-    key_seq = key_seq
+        ref_seq = ref.ref_seq
+        key_seq = key_seq
 
-    alignment = get_align(ref, read)
+        alignment = get_align(ref, read)
+
+        #Set_variables_below
+
+
+class Aligned_Read(inherit Aligned)
+
+    init(Aligned_Key aligned_key, Seq read)
+
+        read_line = read.seq.str
+        ref_line = aligned_key.ref_line
+
+        #Set_variables_below
+
+
+class Genotyper_for_Reference
+
+    init(list[Aligned_Read] aligned_read_list)
+
+        for aligned_read in aligned_read_list:
+            dict[aligned_read.indel.type] += 1
+
+        sorted_list: sort_dict(dict, by the values)
+
+        genotype = Genotype(sorted_list)
+        genotype.longtext
+
+
+class Genotype
+
+    str longtext
+    str shorttext
+    list[str] warning_message
+    bool ignore_this
+
+    init(sorted_list[(indel_type, #count)])
+
+        # set_genotype
+        # set warning message
+        # by setting it, set ignore_this boolean
+
 
 
 def get_key_from_seq(str seq):
@@ -103,14 +157,14 @@ main:
 
     seq_aligned_hashmap = get_aligned_hashmap(seq_key_list, reference_list) : dict(seq_key -> Aligned_Key)
 
-    indel_counter_list_list = []
+    genotyper_list_list = []
     for file in file_list:
         read_raw_list = get_read_raw_list(file_name)
         aligned_read_list = get_aligned_read_list(seq_aligned_hashmap, read_raw_list) : find matching seq_key to aligned_key
 
-        indel_counter_list = get_indel_counter_list(aligned_read_list, reference_list)
+        genotyper_list = get_genotyper_list(aligned_read_list, reference_list)
         write_sub_log(aligned_read_list, indel_counter_list)
-        indel_counter_list_list.append(indel_counter_list)
+        genotyper_list_list.append(indel_counter_list)
 
     write_main_log(indel_counter_list_list)
     write_main_html_log(indel_counter_list_list)
@@ -119,9 +173,11 @@ main:
     write_main_csv_log(indel_counter_list_list)
 
 
-##################
-# Nothing useful #
-##################
+
+
+#############################
+# Nothing useful below here #
+#############################
 
 
 for file_no, file_name in read_file_list:

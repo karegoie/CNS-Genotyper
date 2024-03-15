@@ -12,7 +12,7 @@ Dependency:
 
 ## TODO Stack
 
-- Build Pseudocode for using 'Hashmap' to shorten the calc time(40%).
+- Build Pseudocode for using 'Hashmap' to shorten the calc time(90%).
 
 - Rename the classes.
 
