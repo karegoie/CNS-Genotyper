@@ -5,24 +5,64 @@ Identified = Aligned and Indel-confirmed?
 Aligned += Indel-confirmed?
 
 Class
-    Aligned_Key
-    Aligned_Read
+    Reference : with ref_seq and grna_seq, with position information
+    Aligned_Key : with indel_type
+    Aligned_Read : with indel_type from Aligned_key
     Indel_Type
 
     Genotyper_for_Reference
     Genotype
 
 
+class Reference
+    str name
+    str ref_seq
+    str guide_rna_seq
+    str pos_line
 
-get_key_from_seq():
+    init(name, ref_seq, grna_seq):
+
+        if ref_seq.find(grna_seq) < 0:
+            ref_seq = get_opposite_strand(ref_seq)
+
+        if ref_seq.find(grna_seq) < 0:
+            (this error will be checked already before)
+
+        pos_line = get_pos_line(ref_seq, guide_rna_seq)
+
+        # Set_variables_below
+
+
+class Aligned
+    str name
+    str ref_name
+    str read_line
+    str ref_line
+    str pos_line
+    str match_line
+    str phred_line
+    float score
+    int score_int
+
+
+class Aligned_Key(inherit Aligned)
+    init(Reference ref, str key_seq):
+
+    ref_seq = ref.ref_seq
+    key_seq = key_seq
+
+    alignment = get_align(ref, read)
+
+
+def get_key_from_seq(str seq):
 
     seq = seq.replace('N', '')
 
     seq_key = seq[PADDING:-PADDING]
-    seq_key_hashmap[seq_key] = None
+    return seq_key
 
 
-get_key_list_of_all_seq():
+def get_key_list_of_all_seq():
 
     seq_hashmap = dict()
     for file_no, file_name in read_file_list:
@@ -50,8 +90,7 @@ get_aligned_hashmap(seq_key_list, reference_list):
         seq_key_hashmap[seq_key] = aligned_seq_key
 
 main:
-
-    do set_all_variables(inserted_variables)
+    set_all_variables(inserted_variables)
 
     is_good_to_go = test_all_input_files_with_message() : testing existence of data file, and valid ref sequences.
     if not is_good_to_go:
@@ -60,39 +99,45 @@ main:
     read_file_list = get_valid_data_file_names_list() : return valid data file names, ignoring set-keywords
     reference_list = get_reference_list_from_file() : return references, in the files in ref
 
-    seq_key_list = get_key_list_of_all_seq(file_list, etc) : dict(seq_key -> None) to make hashmap
+    seq_key_list = get_key_list_of_all_seq(file_list, etc) : list(seq_key) to make hashmap
 
     seq_aligned_hashmap = get_aligned_hashmap(seq_key_list, reference_list) : dict(seq_key -> Aligned_Key)
 
+    indel_counter_list_list = []
     for file in file_list:
-
         read_raw_list = get_read_raw_list(file_name)
-        aligned_read_list = get_aligned_read_list(seq_aligned_hashmap, read_raw_list)
+        aligned_read_list = get_aligned_read_list(seq_aligned_hashmap, read_raw_list) : find matching seq_key to aligned_key
 
-    for file_no, file_name in read_file_list:
+        indel_counter_list = get_indel_counter_list(aligned_read_list, reference_list)
+        write_sub_log(aligned_read_list, indel_counter_list)
+        indel_counter_list_list.append(indel_counter_list)
 
-        indel_counter_list = []
-        for reference in reference_list:
-            indel_counter = Genotyper_for_Reference(reference)
-            indel_counter_list.append(indel_counter)
+    write_main_log(indel_counter_list_list)
+    write_main_html_log(indel_counter_list_list)
+    write_main_raw_log(indel_counter_list_list)
 
-        read_raw_list = get_read_raw_list(file_name)
-
-        for read_raw in read_raw_list:
-
-            seq = str(read_raw.seq)
-            seq = seq.replace('N', '')
-
-            seq_key = seq[PADDING:-PADDING]
-            aligned_seq_key = seq_key_hashmap[seq_key]
+    write_main_csv_log(indel_counter_list_list)
 
 
+##################
+# Nothing useful #
+##################
 
 
+for file_no, file_name in read_file_list:
 
+    indel_counter_list = []
+    for reference in reference_list:
+        indel_counter = Genotyper_for_Reference(reference)
+        indel_counter_list.append(indel_counter)
 
+    read_raw_list = get_read_raw_list(file_name)
 
+    for read_raw in read_raw_list:
 
-        line_set_list = []
-        for read_raw in read_raw_list:
+        seq = str(read_raw.seq)
+        seq = seq.replace('N', '')
+
+        seq_key = seq[PADDING:-PADDING]
+        aligned_seq_key = seq_key_hashmap[seq_key]
 
