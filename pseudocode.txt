@@ -10,7 +10,7 @@ Class
     Aligned_Read : with indel_type from Aligned_key
     Indel_Type
 
-    Genotyper_for_Reference
+    Genotyper_for_Reference : genotyper for each reference
     Genotype
 
 
@@ -22,9 +22,13 @@ class Indel_Type
     int indel_length
     str indel_seq
 
-    init(read_line, ref_line, etc)
+    init(read_line, ref_line, pos_line, etc)
 
-        read_indel_type()
+        # read indel type.
+        # find cut position by using pos_line: ">>>-->>> ----<<<" : find >[]>[]>[]<[]<[]< position
+        # find position from the <<<, only by ignoring '-' thing : get substring, ignore '-', get its length.
+        # find indel position, for all mismatch-block existing.
+        read_indel_type(read_line, ref_line, pos_line)
 
 
 class Reference
@@ -90,7 +94,8 @@ class Genotyper_for_Reference
         sorted_list: sort_dict(dict, by the values)
 
         genotype = Genotype(sorted_list)
-        genotype.longtext
+
+        #Set_variables_below
 
 
 class Genotype
@@ -100,11 +105,13 @@ class Genotype
     list[str] warning_message
     bool ignore_this
 
-    init(sorted_list[(indel_type, #count)])
+    init(sorted_list[(indel_type, #count)] genotype_list)
 
-        # set_genotype
+        # set_genotype by calculating the ratio of each indel type.
+        # check the 'err' genotype simultaneously
         # set warning message
-        # by setting it, set ignore_this boolean
+        # by setting it, set ignore_this
+
 
 
 
@@ -135,7 +142,7 @@ def get_key_list_of_all_seq():
     return seq_key_list
 
 
-get_aligned_hashmap(seq_key_list, reference_list):
+def get_aligned_hashmap(seq_key_list, reference_list):
 
     for seq_key in seq_key_list:
 
@@ -143,7 +150,8 @@ get_aligned_hashmap(seq_key_list, reference_list):
 
         seq_key_hashmap[seq_key] = aligned_seq_key
 
-main:
+
+def main:
     set_all_variables(inserted_variables)
 
     is_good_to_go = test_all_input_files_with_message() : testing existence of data file, and valid ref sequences.
@@ -171,6 +179,8 @@ main:
     write_main_raw_log(indel_counter_list_list)
 
     write_main_csv_log(indel_counter_list_list)
+
+    RETURN
 
 
 

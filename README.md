@@ -1,8 +1,8 @@
 # CNS-Genotyper
 
-## Cas9 Mutant Genotyper with Next Generation Sequencing!
+Cas9 Mutant Genotyper with Next Generation Sequencing!
 
-Dependency:
+## Dependency:
 
 - Bio = From reading fastq files to making alignments
 
@@ -12,7 +12,7 @@ Dependency:
 
 ## TODO Stack
 
-- Build Pseudocode for using 'Hashmap' to shorten the calc time(90%).
+- Build Pseudocode for using 'Hashmap' to shorten the calc time(100%).
 
 - Rename the classes.
 
@@ -24,7 +24,7 @@ Dependency:
 
 - If memory issue exists: Try using SQLite for Memoization!
 
-## Data folder of InDel_Type_Counter:
+## Data folder of CNS-Genotyper:
 
 To run the program, you must put the NGS data in here:
 
@@ -32,7 +32,7 @@ only file with name '.fastq' and '.fastq.gz' will be read by the program,
 
 and other files like this will not be used as a data.
 
-### main.py -x R2 -x undetermined 
+### CNS-Genotyper.exe -x R2 -x undetermined 
 
 To ignore some files after getting all data from the NGS raw result,
 
