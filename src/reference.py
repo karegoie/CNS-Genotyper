@@ -34,6 +34,9 @@ def get_pos_line_of_ref_seq(ref_seq, guide_rna_seq):
         std_pos = pos_line.find('<')
         cut_pos = std_pos + glv.CUT_POS_FROM_PAM
         pos_line = pos_line[:cut_pos-1] + ')(' + pos_line[cut_pos+1:]
+        pos_line = pos_line[:pos_line.find(">") - 5] + '|' + pos_line[pos_line.find(">") - 4:]
+        pos_line = pos_line[:std_pos + pam_end + 5] + '|' + pos_line[std_pos + pam_end + 6:]
+        print(pos_line)
 
     else:
         # not finished yet... for Cpf1

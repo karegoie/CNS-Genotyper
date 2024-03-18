@@ -63,7 +63,7 @@ class Aligned:
     def __str__(self):
         return f"@\tref: {self.ref_name}\t /read: {self.read_name}\t /file: {self.file_name}\n" \
                f"@\tscore: {self.int_score}\t /indel: {self.indel}\n" \
-               f"position: {self.pos_line}\n" \
+               f"position: {self.pos_line.replace('(', '>').replace(')', '>').replace('|', ' ')}\n" \
                f"ref_line: {self.ref_line}\n" \
                f"match   : {self.match_line}\n" \
                f"readline: {self.read_line}\n" \
@@ -73,7 +73,7 @@ class Aligned:
     def get_str_simple(self):
         return f"r read: {self.read_name}\t /score: {self.int_score}\n" \
                f"| indel: {self.indel}\n" \
-               f"| position: {self.pos_line}\n" \
+               f"| position: {self.pos_line.replace('(', '>').replace(')', '>').replace('|', ' ')}\n" \
                f"| ref_line: {self.ref_line}\n" \
                f"| match   : {self.match_line}\n" \
                f"| readline: {self.read_line}\n" \
@@ -205,7 +205,7 @@ class Aligned_Key(Aligned):
         self.pos_line = align_result.pos_line
         self.ref_line = align_result.ref_line
         self.match_line = align_result.match_line
-        self.read_line = ""
+        self.read_line = align_result.read_line
         self.phred_line = ""
 
         self.read_name = "(aligned_key)"
@@ -222,13 +222,18 @@ class Aligned_Key(Aligned):
 
 def get_aligned_read_line(read_seq, match_line):
     read_line = ""
+
+    # list: for the faster calculation
+    read_line_list = []
+    i = 0
     for m in match_line:
         if m == 'x':
-            read_line += '-'
+            read_line_list.append('-')
         else:
-            read_line += read_seq[0]
-            read_seq = read_seq[1:]
+            read_line_list.append(read_seq[i])
+            i += 1
 
+    read_line = "".join(read_line_list)
     return read_line
 
 
@@ -280,21 +285,24 @@ def get_pos_line_untrimmed(ref_line_untrimmed: str, ref_pos_line: str):
     is_in_focus = False
 
     pos_line_untrimmed = ""
+    pos_line_untrimmed_list = []
+    i = 0
     for s in ref_line_untrimmed:
         if s in ('-', 'X'):
             if is_in_focus:
-                pos_line_untrimmed += '-'
+                pos_line_untrimmed_list.append('-')
             else:
-                pos_line_untrimmed += ' '
+                pos_line_untrimmed_list.append(' ')
         else:
-            if len(ref_pos_line) > 1:
-                if ref_pos_line[0] == '>':
+            if len(ref_pos_line) > i+2:
+                if ref_pos_line[i] == '>':
                     is_in_focus = True
-                if ref_pos_line[0] == '<' and ref_pos_line[1] == ' ':
+                if ref_pos_line[i] == '<' and ref_pos_line[i+1] == ' ':
                     is_in_focus = False
-            pos_line_untrimmed += ref_pos_line[0]
-            ref_pos_line = ref_pos_line[1:]
+            pos_line_untrimmed_list.append(ref_pos_line[i])
+            i += 1
 
+    pos_line_untrimmed = "".join(pos_line_untrimmed_list)
     return pos_line_untrimmed
 
 
@@ -329,26 +337,35 @@ def get_align_result_for_key(key_seq: str, reference: Reference):
 
     # trim the sequence, and build the match_line
     ref_line = match_line = read_line = pos_line = ""
+    ref_line_list = []
+    match_line_list = []
+    read_line_list = []
+    pos_line_list = []
     count_base = 0
 
     for i, c in enumerate(read_line_untrimmed):
         if count_base >= len(read_seq):
             break
-        if len(read_line) == 0 and c == "-":
+        if len(read_line_list) == 0 and c == "-":
             continue
-        read_line += c
-        ref_line += ref_line_untrimmed[i]
-        pos_line += pos_line_untrimmed[i]
+        read_line_list.append(c)
+        ref_line_list.append(ref_line_untrimmed[i])
+        pos_line_list.append(pos_line_untrimmed[i])
         count_base += 1
         if read_line_untrimmed[i] == '-':
-            match_line += 'x'
+            match_line_list.append('x')
             count_base -= 1
         elif ref_line_untrimmed[i] == '-':
-            match_line += '+'
+            match_line_list.append('+')
         elif read_line_untrimmed[i] == ref_line_untrimmed[i]:
-            match_line += '|'
+            match_line_list.append('|')
         else:
-            match_line += '.'
+            match_line_list.append('.')
+
+    ref_line = "".join(ref_line_list)
+    match_line = "".join(match_line_list)
+    read_line = "".join(read_line_list)
+    pos_line = "".join(pos_line_list)
 
     align_result = Aligned()
     align_result.ref_line = get_longer_ref_line(ref_line, ref_line_untrimmed, glv.ERR_PADDING_FOR_SEQ)

@@ -205,8 +205,9 @@ def get_aligned_hashmap(seq_key_list, reference_list):
     for i, seq_key in enumerate(seq_key_list):
         hashmap[seq_key] = get_best_aligned_key(seq_key, reference_list)
         # print(seq_key, hashmap[seq_key])
-        if i%100 == 0:
-            print(i+1, datetime.datetime.now() - start_time, )
+        if i % 100 == 0:
+            print(i+1, datetime.datetime.now() - start_time,
+                  (datetime.datetime.now() - start_time) * (len(seq_key_list) - (i+1)) / (i+1))
 
     return hashmap
 
@@ -350,14 +351,14 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
         line_set_list = []
         for i, read_raw in enumerate(read_raw_iter):
 
-            print(read_raw_iter)
-
             seq = str(read_raw.seq)
             seq_key = get_seq_key(seq)
-
             aligned_key = aligned_hashmap[seq_key]
-
-            aligned_read = Aligned_Read(aligned_key, read_raw, file_name)
+            if aligned_key.strand == '-':
+                aligned_read = Aligned_Read(aligned_key, read_raw.reverse_complement(), file_name)
+            else:
+                aligned_read = Aligned_Read(aligned_key, read_raw, file_name)
+                aligned_read = Aligned_Read(aligned_key, read_raw.reverse_complement(), file_name)
 
             print(aligned_read)
 
@@ -382,7 +383,7 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
             # best_line_set.set_file_name(file_name=file_name)
             #
             # line_set_list.append(best_line_set)
-'''
+
         # # # for showing expected time left / while log writing
         print(f"\r({file_no + 1}/{len(data_file_list)}) for {file_name}: Complete / "
               f"Writing log files (length: {len(line_set_list)})                              ", end="")
@@ -464,7 +465,7 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
 
     #
     if glv.OPEN_XLSX_AUTO:
-        os.system(f"start EXCEL.EXE {get_main_log_name('xlsx')}")'''
+        os.system(f"start EXCEL.EXE {get_main_log_name('xlsx')}")
 
 
 
