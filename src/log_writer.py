@@ -7,9 +7,9 @@ from xlsxwriter.workbook import Workbook
 # type hinting for lower version of python
 from typing import List, Dict
 
-from src.aligned import Line_Set
+from src.aligned import Aligned_Read
 from src.reference import Reference
-from src.indel_counter_for_genotype import InDel_Counter_for_Genotype
+from src.genotyper_for_reference import Genotyper_For_Reference
 import src.globals as glv
 
 # Variables for uh... zero division
@@ -45,28 +45,28 @@ def get_sub_log_address(file_name: str, ref_name: str, extension: str):
     return address
 
 
-def write_sub_log(line_set_list: List[Line_Set], indel_counter: InDel_Counter_for_Genotype, file_name: str):
-    file_log = open(get_sub_log_address(file_name, indel_counter.ref_name, 'txt'), 'w')
+def write_sub_log(aligned_read_list: List[Aligned_Read], genotyper: Genotyper_For_Reference, file_name: str):
+    file_log = open(get_sub_log_address(file_name, genotyper.ref_name, 'txt'), 'w')
 
     file_log.write(f""
                    f"# <CNS-Genotyper {glv.VERSION} Side Log for {file_name}>\n"
                    f"# Log at {datetime.datetime.now()} (UTC {datetime.datetime.now() - datetime.datetime.utcnow()})\n"
                    f"# \n"
                    f"# Task Title: {glv.TASK_TITLE}\n"
-                   f"# {file_name} as a data / {indel_counter.ref_name} as a reference sequence\n"
+                   f"# {file_name} as a data / {genotyper.ref_name} as a reference sequence\n"
                    f"\n"
                    f"{glv.get_text_of_global_variables()}"
                    f"\n"
-                   f"{_showing_selected_area_to_text(guide_rna_seq=indel_counter.guide_rna_seq)}"
+                   f"{_showing_selected_area_to_text(guide_rna_seq=genotyper.guide_rna_seq)}"
                    f"\n"
                    f"\n")
 
-    file_log.write(indel_counter.get_abstract_text())
+    file_log.write(genotyper.get_abstract_text())
     file_log.write("\n"
                    "\n"
                    "----------------------\n")
 
-    # file_log.write(indel_counter.get_examples_text())
+    # file_log.write(genotyper.get_examples_text())
     # file_log.write("\n"
     #                "\n"
     #                "----------------------\n")
@@ -75,16 +75,16 @@ def write_sub_log(line_set_list: List[Line_Set], indel_counter: InDel_Counter_fo
                    "\n"
                    "\n")
 
-    for line_set in line_set_list:
-        if line_set.ref_name == indel_counter.ref_name:
-            file_log.write(str(line_set))
+    for aligned_read in aligned_read_list:
+        if aligned_read.ref_name == genotyper.ref_name:
+            file_log.write(str(aligned_read))
             file_log.write("\n"
                            "\n")
 
     file_log.close()
 
 
-def write_main_log(indel_counter_list_list: List[List[InDel_Counter_for_Genotype]], total_length: int):
+def write_main_log(genotyper_list_list: List[List[Genotyper_For_Reference]], total_length: int):
     main_log_name = get_main_log_name("txt", is_sub=True)
     file_log = open(main_log_name, "w")
 
@@ -99,11 +99,11 @@ def write_main_log(indel_counter_list_list: List[List[InDel_Counter_for_Genotype
                    f"\n"
                    f"\n")
 
-    for indel_counter_list in indel_counter_list_list:
-        file_log.write(f"<{indel_counter_list[0].file_name}>\n"
+    for genotyper_list in genotyper_list_list:
+        file_log.write(f"<{genotyper_list[0].file_name}>\n"
                        f"\n")
-        for indel_counter in indel_counter_list:
-            file_log.write(indel_counter.get_abstract_text())
+        for genotyper in genotyper_list:
+            file_log.write(genotyper.get_abstract_text())
             file_log.write("\n"
                            "\n"
                            "\n")
@@ -111,7 +111,7 @@ def write_main_log(indel_counter_list_list: List[List[InDel_Counter_for_Genotype
     file_log.close()
 
 
-def write_main_html_log(indel_counter_list_list: List[List[InDel_Counter_for_Genotype]], total_length: int):
+def write_main_html_log(genotyper_list_list: List[List[Genotyper_For_Reference]], total_length: int):
     main_log_name = get_main_log_name("html")
     file_log = open(main_log_name, "w")
 
@@ -149,12 +149,12 @@ def write_main_html_log(indel_counter_list_list: List[List[InDel_Counter_for_Gen
                    f"    total reads: {total_length} reads<br>\n"
                    f"    </div>\n")
 
-    for indel_counter_list in indel_counter_list_list:
+    for genotyper_list in genotyper_list_list:
         file_log.write(
-            f"<div class=file id={indel_counter_list[0].file_name}><h2 class=file_name>[{indel_counter_list[0].file_name}]</h2>\n")
-        for indel_counter in indel_counter_list:
-            example_text = indel_counter.get_abstract_text(is_html=True).replace("\n", "<br>").replace('  ', '&nbsp;&nbsp;')
-            file_log.write(f"<div class=ref id={indel_counter.ref_name}>")
+            f"<div class=file id={genotyper_list[0].file_name}><h2 class=file_name>[{genotyper_list[0].file_name}]</h2>\n")
+        for genotyper in genotyper_list:
+            example_text = genotyper.get_abstract_text(is_html=True).replace("\n", "<br>").replace('  ', '&nbsp;&nbsp;')
+            file_log.write(f"<div class=ref id={genotyper.ref_name}>")
 
             file_log.write(example_text)
             file_log.write("\n"
@@ -173,7 +173,7 @@ def write_main_html_log(indel_counter_list_list: List[List[InDel_Counter_for_Gen
     file_log.close()
 
 
-def write_main_csv_log(indel_counter_list_list: List[List[InDel_Counter_for_Genotype]], ref_set_list: List[Reference]):
+def write_main_csv_log(genotyper_list_list: List[List[Genotyper_For_Reference]], ref_set_list: List[Reference]):
     csv_log_name = get_main_log_name("csv")
     xlsx_log_name = get_main_log_name("xlsx")
     file_csv = open(csv_log_name, 'w', newline="")
@@ -196,29 +196,29 @@ def write_main_csv_log(indel_counter_list_list: List[List[InDel_Counter_for_Geno
     file_csv_writer.writerow(["file", "reference", "warning", "genotype", "_of",
                               "# total", "# error", "# not err", "# of genotype"])
 
-    for indel_counter_list in indel_counter_list_list:
+    for genotyper_list in genotyper_list_list:
         total_lines_for_file = 0
 
-        for indel_counter in indel_counter_list:
-            total_lines_for_file += len(indel_counter)
+        for genotyper in genotyper_list:
+            total_lines_for_file += len(genotyper)
 
-        for i, indel_counter in enumerate(indel_counter_list):
+        for i, genotyper in enumerate(genotyper_list):
             row = [""]
-            genotype = indel_counter.get_genotype()
-            sorted_count_map_list = indel_counter.get_sorted_count_map_list()
-            len_without_err = indel_counter.get_len(with_err=False) + Z
-            len_total = len(indel_counter) + Z
+            genotype = genotyper.get_genotype()
+            sorted_count_map_list = genotyper.get_sorted_count_map_list()
+            len_without_err = genotyper.get_len(with_err=False) + Z
+            len_total = len(genotyper) + Z
             if i == 0:
-                row[0] = indel_counter.file_name
+                row[0] = genotyper.file_name
             if i == 1:
                 row[0] = f"{total_lines_for_file} lines"
-            row += [indel_counter.ref_name,
+            row += [genotyper.ref_name,
                     genotype.warning.strip().replace("\n", ", "),
                     genotype.allele_set_text,
                     str(genotype).splitlines()[0].strip(),
-                    len(indel_counter),
-                    f"err {indel_counter.count_map['err']}({round(indel_counter.count_map['err'] / len_total, 3)})",
-                    indel_counter.get_len(with_err=False)]
+                    len(genotyper),
+                    f"err {genotyper.count_map['err']}({round(genotyper.count_map['err'] / len_total, 3)})",
+                    genotyper.get_len(with_err=False)]
 
             for key, value in sorted_count_map_list:
                 if key == 'err':
@@ -325,7 +325,7 @@ def _showing_selected_area_to_text(guide_rna_seq: str):
            f"{selected_area_line}\n"
 
 
-def write_raw_data_log(indel_counter_list_list: List[List[InDel_Counter_for_Genotype]], debug_data: Dict[str, Dict]):
+def write_raw_data_log(genotyper_list_list: List[List[Genotyper_For_Reference]], debug_data: Dict[str, Dict]):
     debug_log_name = get_main_log_name("raw", is_sub=True)
 
     with open(debug_log_name, 'w') as file_log:
@@ -338,12 +338,12 @@ def write_raw_data_log(indel_counter_list_list: List[List[InDel_Counter_for_Geno
 
         file_log.write(f"indel_type\tinsertion\tdeletion\tindel_length\tindel_position\t# count\n")
 
-        for indel_counter_list in indel_counter_list_list:
-            for indel_counter in indel_counter_list:
+        for genotyper_list in genotyper_list_list:
+            for genotyper in genotyper_list:
                 file_log.write(f"\n"
-                               f"{indel_counter.file_name}--{indel_counter.ref_name}\n")
+                               f"{genotyper.file_name}--{genotyper.ref_name}\n")
 
-                for key, value in indel_counter.get_sorted_count_map_list():
+                for key, value in genotyper.get_sorted_count_map_list():
                     indel_i, indel_d, indel_length, indel_pos = get_indel_type_text_unpacked(key)
                     file_log.write(f"{key}\t{indel_i}\t{indel_d}\t{indel_length}\t{indel_pos}\t{value}\n")
 

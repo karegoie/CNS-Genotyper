@@ -10,7 +10,7 @@ from typing import List
 
 from src.reference import Reference
 from src.aligned import Line_Set
-from src.indel_counter_for_genotype import InDel_Counter_for_Genotype
+from src.genotyper_for_reference import InDel_Counter_for_Genotype
 from src.log_writer import write_main_log, write_main_html_log, write_sub_log, write_main_csv_log, get_main_log_name, write_raw_data_log
 import src.globals as glv
 

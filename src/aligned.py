@@ -60,6 +60,9 @@ class Aligned:
     score = 0
     int_score = 0
 
+    def __len__(self):
+        return len(self.read_line)
+
     def __str__(self):
         return f"@\tref: {self.ref_name}\t /read: {self.read_name}\t /file: {self.file_name}\n" \
                f"@\tscore: {self.int_score}\t /indel: {self.indel}\n" \
@@ -78,7 +81,6 @@ class Aligned:
                f"| match   : {self.match_line}\n" \
                f"| readline: {self.read_line}\n" \
                f"L phred   : {self.phred_line}\n"
-
 
 class Indel_Type:
     indel_type = ""

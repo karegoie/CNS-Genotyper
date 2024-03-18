@@ -11,8 +11,8 @@ from typing import List
 
 from src.reference import Reference
 from src.aligned import Aligned_Key, Aligned_Read, Aligned
-# from src.indel_counter_for_genotype import InDel_Counter_for_Genotype
-# from src.log_writer import write_main_log, write_main_html_log, write_sub_log, write_main_csv_log, get_main_log_name, write_raw_data_log
+from src.genotyper_for_reference import Genotyper_For_Reference
+from src.log_writer import write_main_log, write_main_html_log, write_sub_log, write_main_csv_log, get_main_log_name, write_raw_data_log
 import src.globals as glv
 
 DATA_ADDRESS = "./data/"
@@ -100,11 +100,11 @@ def get_total_number_of_reads(data_file_list: List[str]):
     return total_reads_count, reads_count_list
 
 
-# def key_for_sorting_err(line_set: Line_Set):
-#     if line_set.indel_type == 'err':
-#         return 1
-#         # return len(line_set)
-#     return 0
+def key_for_sorting_err(aligned_read: Aligned_Read):
+    if aligned_read.indel.indel_type == 'err':
+        return 1
+        # return len(aligned_read)
+    return 0
 
 
 def test_all_input_files():
@@ -297,8 +297,10 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
 
     start_time_for_file = datetime.datetime.now()
 
-    # for total result, making list[list[InDel_Counter]]
-    all_indel_counter_list_list = []
+    # for total result, making list[list[genotyper]]
+    all_genotyper_list_list = []
+
+    debug_data = dict()
 
     for file_no, file_name in enumerate(data_file_list):
         '''
@@ -307,32 +309,31 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
             
             for each read:
                 for each reference:
-                    (make line_set from 1 read and 1 reference)
+                    (make aligned_read from 1 read and 1 reference)
                     make possible aligns with each reference sequences,
                     align the phred score line,
                     get the position of guide_RNA and PAM sequence,
                     get the indel type by checking around the PAM starting point,
                     get the score(mismatch ratio without main indel) and check if it is error seq or not.
                 
-                pick the best aligned line_set by score, 
+                pick the best aligned aligned_read by score, 
                 and add it to the list.
                 
-            for each line_set in list:
-                for each indel_counter in list:
-                    if line_set.ref == indel_counter.ref:
-                        indel_counter.count(line_set) < count the each indel type
+            for each aligned_read in list:
+                for each genotyper in list:
+                    if aligned_read.ref == genotyper.ref:
+                        genotyper.count(aligned_read) < count the each indel type
         '''
 
         # for counting expected time left
         start_time_for_file_before = start_time_for_file
         start_time_for_file = datetime.datetime.now()
 
-        # build list[InDel_Counter_For_Ref]
-        # indel_counter_list = []
-        # for reference in reference_list:
-        #     indel_counter = InDel_Counter_for_Genotype(reference=reference)
-        #     indel_counter.set_file_name(file_name=file_name)
-        #     indel_counter_list.append(indel_counter)
+        # build list[genotyper_For_Ref]
+        genotyper_list = []
+        for reference in reference_list:
+            genotyper = Genotyper_For_Reference(reference=reference, file_name=file_name)
+            genotyper_list.append(genotyper)
 
         if file_name[-5:] == str("file.fastq.gz")[-5:]:
             read_raw_iter = SeqIO.parse(gzip.open(str(os.path.join(DATA_ADDRESS, file_name)), "rt"), "fastq")
@@ -346,9 +347,8 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
         # os.replace(os.path.join(DATA_ADDRESS, file_name), os.path.join(USED_DATA_ADDRESS, file_name))
         # not working...
 
-        # build list[Bio.SeqRecord]
-        # build list[Line_Set]
-        line_set_list = []
+        # build list[Aligned_Read]        
+        aligned_read_list = []
         for i, read_raw in enumerate(read_raw_iter):
 
             seq = str(read_raw.seq)
@@ -358,9 +358,8 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
                 aligned_read = Aligned_Read(aligned_key, read_raw.reverse_complement(), file_name)
             else:
                 aligned_read = Aligned_Read(aligned_key, read_raw, file_name)
-                aligned_read = Aligned_Read(aligned_key, read_raw.reverse_complement(), file_name)
 
-            print(aligned_read)
+            aligned_read_list.append(aligned_read)
 
             # # # # for showing expected time left
             # finish_reads_count += 1
@@ -379,66 +378,65 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
             #           f"(for this file: {(delta_time/delta_count)*(len(read_raw_list)-(i+1))}) "
             #           f"(length: {len(read_raw_list)})                              ", end="")
             #
-            # best_line_set = get_best_line_set(read_raw, reference_list)
-            # best_line_set.set_file_name(file_name=file_name)
+            # best_aligned_read = get_best_aligned_read(read_raw, reference_list)
+            # best_aligned_read.set_file_name(file_name=file_name)
             #
-            # line_set_list.append(best_line_set)
+            # aligned_read_list.append(best_aligned_read)
 
         # # # for showing expected time left / while log writing
         print(f"\r({file_no + 1}/{len(data_file_list)}) for {file_name}: Complete / "
-              f"Writing log files (length: {len(line_set_list)})                              ", end="")
+              f"Writing log files (length: {len(aligned_read_list)})                              ", end="")
 
         # count the number of each indel type,
-        # also setting the best line_set for each indel type happens here
-        for line_set in line_set_list:
-            for indel_counter in indel_counter_list:
-                if indel_counter.ref_name == line_set.ref_name:
-                    indel_counter.count(line_set)
+        # also setting the best aligned_read for each indel type happens here
+        for aligned_read in aligned_read_list:
+            for genotyper in genotyper_list:
+                if genotyper.ref_name == aligned_read.ref_name:
+                    genotyper.count(aligned_read)
 
         # # save the indel type count to each line set
         # # just for the log file
-        for line_set in line_set_list:
-            for indel_counter in indel_counter_list:
-                if indel_counter.ref_name == line_set.ref_name:
-                    line_set.set_indel_same_type_count(indel_counter.count_map)
+        # for aligned_read in aligned_read_list:
+        #     for genotyper in genotyper_list:
+        #         if genotyper.ref_name == aligned_read.ref_name:
+        #             aligned_read.set_indel_same_type_count(genotyper.count_map)
 
         #
         # add the file result to the total result
-        all_indel_counter_list_list.append(indel_counter_list)
+        all_genotyper_list_list.append(genotyper_list)
 
         # # Sorting Line Set List!
         # # err for the last / biggest indel type first / higher score / higher phred score / longer one first
         # # just for the log file
-        indel_counter_map = {}
-        for indel_counter in indel_counter_list:
-            indel_counter_map[indel_counter.ref_name] = indel_counter
-        line_set_list.sort(key=lambda l: l.phred_score, reverse=True)
-        line_set_list.sort(key=lambda l: l.score, reverse=True)
-        line_set_list.sort(key=lambda l: indel_counter_map[l.ref_name].count_map[l.indel_type], reverse=True)
-        line_set_list.sort(key=lambda l: key_for_sorting_err(l))
+        genotyper_map = {}
+        for genotyper in genotyper_list:
+            genotyper_map[genotyper.ref_name] = genotyper
+        aligned_read_list.sort(key=lambda l: l.score, reverse=True)
+        aligned_read_list.sort(key=lambda l: genotyper_map[l.ref_name].count_map[l.indel.indel_type], reverse=True)
+        aligned_read_list.sort(key=lambda l: key_for_sorting_err(l))
 
         # Writing sub log
-        for indel_counter in indel_counter_list:
-            write_sub_log(line_set_list=[l for l in line_set_list if l.ref_name == indel_counter.ref_name],
-                          indel_counter=indel_counter, file_name=file_name)
+        for genotyper in genotyper_list:
+            write_sub_log(aligned_read_list=[l for l in aligned_read_list if l.ref_name == genotyper.ref_name],
+                          genotyper=genotyper, file_name=file_name)
 
         # # for debug data
         if glv.DEBUG:
             pos_phred_score = [0] * 25
             pos_error_count = [0] * 25
 
-            for line_set in line_set_list:
-                if len(line_set) < 20:
-                    print(line_set)
+            for aligned_read in aligned_read_list:
+                if len(aligned_read) < 20:
+                    print(aligned_read)
                     continue
                 for i in range(-10, 10):
-                    pos_phred_score[i] += (ord(line_set.phred_line[i]) - glv.PHRED_ENCODING)
+                    pos_phred_score[i] += (ord(aligned_read.phred_line[i]) - glv.PHRED_ENCODING)
 
-                    if line_set.match_line[i] != '|':
+                    if aligned_read.match_line[i] != '|':
                         pos_error_count[i] += 1
 
             debug_data[file_name] = {
-                'length': len(line_set_list),
+                'length': len(aligned_read_list),
                 'pos_phred_score': pos_phred_score,
                 'pos_error_count': pos_error_count
             }
@@ -447,15 +445,15 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
         end_time_for_file = datetime.datetime.now()
         print(f"\r({file_no + 1}/{len(data_file_list)}) for {file_name}: Complete / Log written / "
               f"{end_time_for_file - start_time} ({end_time_for_file - start_time_for_file} for this file) is passed "
-              f"(length: {len(line_set_list)})       ")
+              f"(length: {len(aligned_read_list)})       ")
 
         # end.
 
     # Writing total log
-    write_main_log(indel_counter_list_list=all_indel_counter_list_list, total_length=total_reads_count)
-    write_main_html_log(indel_counter_list_list=all_indel_counter_list_list, total_length=total_reads_count)
-    write_main_csv_log(indel_counter_list_list=all_indel_counter_list_list, ref_set_list=reference_list)
-    write_raw_data_log(indel_counter_list_list=all_indel_counter_list_list, debug_data=debug_data)
+    write_main_log(genotyper_list_list=all_genotyper_list_list, total_length=len(seq_key_list))
+    write_main_html_log(genotyper_list_list=all_genotyper_list_list, total_length=len(seq_key_list))
+    write_main_csv_log(genotyper_list_list=all_genotyper_list_list, ref_set_list=reference_list)
+    write_raw_data_log(genotyper_list_list=all_genotyper_list_list, debug_data=debug_data)
 
     # # for showing time used
     print(f"Work Completed! (total time: {datetime.datetime.now() - start_time})")
@@ -466,7 +464,7 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
     #
     if glv.OPEN_XLSX_AUTO:
         os.system(f"start EXCEL.EXE {get_main_log_name('xlsx')}")
-
+    input("Press enter to finish the program...")
 
 
 if __name__ == '__main__':

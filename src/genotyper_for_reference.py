@@ -1,4 +1,4 @@
-from src.aligned import Line_Set
+from src.aligned import Aligned_Read
 from src.reference import Reference
 import src.globals as glv
 
@@ -31,7 +31,7 @@ DICT_ERR_NT_REV = {
 }
 
 
-class InDel_Counter_for_Genotype:
+class Genotyper_For_Reference:
     file_name = "(file_name not defined)"
     ref_name = ""
     guide_rna_name = ""
@@ -39,11 +39,12 @@ class InDel_Counter_for_Genotype:
     count_map = {}
     best_example_map = {}
 
-    def __init__(self, reference: Reference):
-
+    def __init__(self, reference: Reference, file_name: str):
+        
         # Only init the initial values of variables:
         # The real value will be updated with each 'count' function
 
+        self.file_name = file_name
         self.ref_name = reference.ref_name
         self.guide_rna_name = reference.guide_rna_name
         self.guide_rna_seq = reference.guide_rna_seq
@@ -52,6 +53,7 @@ class InDel_Counter_for_Genotype:
 
     def __str__(self):
         genotype = self.get_genotype()
+        
         str = f"for {self.ref_name} in {self.file_name}: \n" \
               f"guide_rna: {self.guide_rna_name} ({self.guide_rna_seq})\n" \
               f"\n" \
@@ -83,41 +85,34 @@ class InDel_Counter_for_Genotype:
                 length += self.count_map[key]
         return length
 
-    def set_file_name(self, file_name: str):
-        self.file_name = file_name
-
-    def count(self, line_set: Line_Set):
-        if line_set.ref_name != self.ref_name:
+    def count(self, aligned_read: Aligned_Read):
+        if aligned_read.ref_name != self.ref_name:
             return
-        if line_set.indel_type in self.count_map.keys():
-            self.count_map[line_set.indel_type] += 1
+        if aligned_read.indel.indel_type in self.count_map.keys():
+            self.count_map[aligned_read.indel.indel_type] += 1
         else:
-            self.count_map[line_set.indel_type] = 1
+            self.count_map[aligned_read.indel.indel_type] = 1
 
-        if line_set.indel_type in self.best_example_map.keys():
+        if aligned_read.indel.indel_type in self.best_example_map.keys():
             # check the highest score, the highest phred_score, and the largest length.
 
-            if self.best_example_map[line_set.indel_type].score < line_set.score:
-                self.best_example_map[line_set.indel_type] = line_set
-            elif self.best_example_map[line_set.indel_type].score == line_set.score:
+            if self.best_example_map[aligned_read.indel.indel_type].score < aligned_read.score:
+                self.best_example_map[aligned_read.indel.indel_type] = aligned_read
+            elif self.best_example_map[aligned_read.indel.indel_type].score == aligned_read.score:
 
-                if self.best_example_map[line_set.indel_type].phred_score < line_set.phred_score:
-                    self.best_example_map[line_set.indel_type] = line_set
-                elif self.best_example_map[line_set.indel_type].phred_score == line_set.phred_score:
-
-                    if len(self.best_example_map[line_set.indel_type]) < len(line_set):
-                        self.best_example_map[line_set.indel_type] = line_set
+                if len(self.best_example_map[aligned_read.indel.indel_type]) < len(aligned_read):
+                    self.best_example_map[aligned_read.indel.indel_type] = aligned_read
         else:
             # initial set for the indel type
-            self.best_example_map[line_set.indel_type] = line_set
-
+            self.best_example_map[aligned_read.indel.indel_type] = aligned_read
+    
     def get_sorted_count_map_list(self):
         sorted_count_tuple_list = list(sorted(self.count_map.items(), key=lambda k: k[1], reverse=True))
         return sorted_count_tuple_list
 
     def get_genotype(self):
         sorted_count_tuple_list = self.get_sorted_count_map_list()
-        return Genotype(indel_counter=self, sorted_count_tuple_list=sorted_count_tuple_list)
+        return Genotype(self, sorted_count_tuple_list=sorted_count_tuple_list)
 
     def get_abstract_text(self, is_html=False):
 
@@ -155,18 +150,18 @@ class InDel_Counter_for_Genotype:
         return text
 
 
-def get_simple_example_lines(sorted_best_example_tuple: list, self: InDel_Counter_for_Genotype, is_html=False):
+def get_simple_example_lines(sorted_best_example_tuple: list, self: Genotyper_For_Reference, is_html=False):
     wt_seq = ""
     wt_pos = ""
     text = ""
 
     sample_set = dict()
 
-    key, line_set = sorted_best_example_tuple[0]
+    key, aligned_read = sorted_best_example_tuple[0]
     if key == 'err':
-        key, line_set = sorted_best_example_tuple[1]
+        key, aligned_read = sorted_best_example_tuple[1]
 
-    wt_set = get_simple_example_line_set(line_set=line_set)
+    wt_set = get_simple_example_aligned_read(aligned_read=aligned_read)
     wt_basic = wt_set["ref_line"]
     pos_basic = wt_set["pos_line"]
 
@@ -176,10 +171,10 @@ def get_simple_example_lines(sorted_best_example_tuple: list, self: InDel_Counte
         wt_seq += a
         wt_pos += pos_basic[i]
 
-    for key, line_set in sorted_best_example_tuple:
+    for key, aligned_read in sorted_best_example_tuple:
         if key == 'err':
             continue
-        sample_set[key] = get_simple_example_line_set(line_set)
+        sample_set[key] = get_simple_example_aligned_read(aligned_read)
 
     i = 0
     while i < len(wt_seq):
@@ -243,43 +238,40 @@ def get_simple_example_lines(sorted_best_example_tuple: list, self: InDel_Counte
     return text
 
 
-def get_simple_example_line_set(line_set: Line_Set):
-    std_pos = line_set.std_pos
-    rna_pos = line_set.rna_pos
-
-    pam_len = 3
-    rna_len = len(line_set.guide_rna_seq)
-
-    ins_up = 0
-    for i in range(std_pos, rna_pos - rna_len - MARGIN_FOR_SAMPLE, -1):
-        while line_set.ref_line[i - ins_up] == '-':
-            # no worries of 'out of range'
-            ins_up += 1
-    ins_down = 0
-    for i in range(std_pos + 1, std_pos + pam_len + MARGIN_FOR_SAMPLE, 1):
-        while line_set.ref_line[i + ins_down] == '-':
-            ins_down += 1
-    # print(line_set.read_name)
+def get_simple_example_aligned_read(aligned_read: Aligned_Read):
+    # std_pos = aligned_read.std_pos
+    # rna_pos = aligned_read.rna_pos
+    #
+    # pam_len = 3
+    # rna_len = len(aligned_read.guide_rna_seq)
+    #
+    # ins_up = 0
+    # for i in range(std_pos, rna_pos - rna_len - MARGIN_FOR_SAMPLE, -1):
+    #     while aligned_read.ref_line[i - ins_up] == '-':
+    #         # no worries of 'out of range'
+    #         ins_up += 1
+    # ins_down = 0
+    # for i in range(std_pos + 1, std_pos + pam_len + MARGIN_FOR_SAMPLE, 1):
+    #     while aligned_read.ref_line[i + ins_down] == '-':
+    #         ins_down += 1
+    # print(aligned_read.read_name)
     # print(ins_up, ins_down)
-    # print(line_set.ref_line[(std_pos - rna_len - ins_up - MARGIN_FOR_SAMPLE):
+    # print(aligned_read.ref_line[(std_pos - rna_len - ins_up - MARGIN_FOR_SAMPLE):
     #                         (std_pos + pam_len + ins_down + MARGIN_FOR_SAMPLE)])
-    # print(line_set.read_line[(std_pos - rna_len - ins_up - MARGIN_FOR_SAMPLE):
+    # print(aligned_read.read_line[(std_pos - rna_len - ins_up - MARGIN_FOR_SAMPLE):
     #                          (std_pos + pam_len + ins_down + MARGIN_FOR_SAMPLE)])
 
-    simple_ref_line = line_set.ref_line[(std_pos - rna_len - ins_up - MARGIN_FOR_SAMPLE):
-                                        (std_pos + pam_len + ins_down + MARGIN_FOR_SAMPLE)]
+    p1 = aligned_read.pos_line.find('|')
+    p2 = aligned_read.pos_line.find('|', p1+1)
 
-    simple_read_line = line_set.read_line[(std_pos - rna_len - ins_up - MARGIN_FOR_SAMPLE):
-                                          (std_pos + pam_len + ins_down + MARGIN_FOR_SAMPLE)]
+    simple_ref_line = aligned_read.ref_line[p1:p2]
+    simple_read_line = aligned_read.read_line[p1:p2]
+    simple_match_line = aligned_read.match_line[p1:p2]
+    simple_pos_line = aligned_read.pos_line[p1:p2].replace('(','>').replace(')','>').replace('|',' ')
 
-    simple_match_line = line_set.match_line[(std_pos - rna_len - ins_up - MARGIN_FOR_SAMPLE):
-                                            (std_pos + pam_len + ins_down + MARGIN_FOR_SAMPLE)]
-
-    simple_pos_line = line_set.pos_line[(std_pos - rna_len - ins_up - MARGIN_FOR_SAMPLE):
-                                        (std_pos + pam_len + ins_down + MARGIN_FOR_SAMPLE)]
     #
     # if glv.DEBUG:
-    #     print(line_set.read_name)
+    #     print(aligned_read.read_name)
     #     print(std_pos, rna_pos, rna_len, ins_up, ins_down)
     #     print(simple_pos_line)
     #     print(simple_ref_line)
@@ -303,12 +295,12 @@ class Genotype:
     allele_set_text = ""
     allele_set_shape = ""
 
-    def __init__(self, indel_counter: InDel_Counter_for_Genotype, sorted_count_tuple_list: list):
+    def __init__(self, genotyper: Genotyper_For_Reference, sorted_count_tuple_list: list):
 
-        if indel_counter.get_len(with_err=False) < READ_MIN:
+        if genotyper.get_len(with_err=False) < READ_MIN:
             self.append_warning("Reads not enough")
 
-        if (indel_counter.count_map['err'] / (len(indel_counter) + Z)) > ERR_ONLY_WARNING_RATIO_MIN:
+        if (genotyper.count_map['err'] / (len(genotyper) + Z)) > ERR_ONLY_WARNING_RATIO_MIN:
             self.append_warning("Error ratio too high")
 
         # now, set the main genotype
@@ -329,10 +321,10 @@ class Genotype:
                 if key != 'err':
                     if self.allele1_ratio == 0:
                         self.allele1_name = key
-                        self.allele1_ratio = round(value / indel_counter.get_len(with_err=False), 3)
+                        self.allele1_ratio = round(value / genotyper.get_len(with_err=False), 3)
                     elif self.allele2_ratio == 0:
                         self.allele2_name = key
-                        self.allele2_ratio = round(value / indel_counter.get_len(with_err=False), 3)
+                        self.allele2_ratio = round(value / genotyper.get_len(with_err=False), 3)
                     else:
                         break
             if self.allele1_ratio > HOMO_RATIO_MIN:
@@ -368,7 +360,7 @@ class Genotype:
 
         # appending warning messages
         # err ratio
-        if (indel_counter.count_map['err'] / (len(indel_counter) + Z)) > ERR_RATIO_MAX:
+        if (genotyper.count_map['err'] / (len(genotyper) + Z)) > ERR_RATIO_MAX:
             self.append_warning("Too many err")
 
         # other allele ratio test
@@ -379,7 +371,7 @@ class Genotype:
                 if key == 'err':
                     pos = 2
             key, value = sorted_count_tuple_list[pos]
-            if value / indel_counter.get_len(with_err=False) > THIRD_RATIO_MAX:
+            if value / genotyper.get_len(with_err=False) > THIRD_RATIO_MAX:
                 self.append_warning("Other allele ratio is too large")
         if self.name == 'hetero' and len(sorted_count_tuple_list) > 3:
             pos = 2
@@ -388,7 +380,7 @@ class Genotype:
                 if key == 'err':
                     pos = 3
             key, value = sorted_count_tuple_list[pos]
-            if value / indel_counter.get_len(with_err=False) > THIRD_RATIO_MAX:
+            if value / genotyper.get_len(with_err=False) > THIRD_RATIO_MAX:
                 self.append_warning("Other allele ratio is too large")
 
     def __str__(self):
