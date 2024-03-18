@@ -17,8 +17,8 @@ import src.globals as glv
 
 DATA_ADDRESS = "./data/"
 REF_ADDRESS = "./ref/"
-GUIDE_RNA_SET_ADDRESS = "./ref/guide_RNA_set.fasta"
-REF_SET_ADDRESS = "./ref/reference_seq_set.fasta"
+GUIDE_RNA_SET_ADDRESS = "./ref/guide_RNA_set.txt"
+REF_SET_ADDRESS = "./ref/reference_seq_set.txt"
 
 # with spans, 3 second for 1000 lines: 20000 for a minute, 1,000,000 ~ 1,500,000 for an hour
 # > total 800 nt of ref, 150 nt for a line: 40,000,000 for a second.
@@ -158,9 +158,9 @@ def test_all_input_files():
     if not is_data_exist:
         print("ERROR: No Data(NGS result files: fastq, fastq.gz) found in the ./data folder")
     if not is_reference_exist:
-        print("ERROR: Something is wrong with ./ref/reference_seq_set.fasta file!")
+        print("ERROR: Something is wrong with ./ref/reference_seq_set.txt file!")
     if not is_guide_rna_exist:
-        print("ERROR: Something is wrong with ./ref/guide_RNA_set.fasta file!")
+        print("ERROR: Something is wrong with ./ref/guide_RNA_set.txt file!")
     if is_guide_rna_exist and is_data_exist and is_reference_exist:
         return True
     print("Please check the files and try again!")
@@ -207,8 +207,8 @@ def get_aligned_hashmap(seq_key_list, reference_list):
         hashmap[seq_key] = get_best_aligned_key(seq_key, reference_list)
         # print(seq_key, hashmap[seq_key])
         if i % 100 == 0:
-            print(i+1, datetime.datetime.now() - start_time,
-                  (datetime.datetime.now() - start_time) * (len(seq_key_list) - (i+1)) / (i+1))
+            print("\r", i+1, datetime.datetime.now() - start_time,
+                  (datetime.datetime.now() - start_time) * (len(seq_key_list) - (i+1)) / (i+1), "             ", end="")
 
     return hashmap
 
@@ -294,9 +294,9 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
 
     seq_key_list, total_reads_count = get_key_list_of_all_seq(data_file_list)
     finish_reads_count = 0
-    aligned_hashmap = get_aligned_hashmap(seq_key_list, reference_list)
     print(f"Total reads: {total_reads_count}\n"
           f"Total unique reads: {len(seq_key_list)}\n")
+    aligned_hashmap = get_aligned_hashmap(seq_key_list, reference_list)
 
     # for total result, making list[list[genotyper]]
     all_genotyper_list_list = []
