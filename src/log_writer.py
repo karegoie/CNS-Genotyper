@@ -7,7 +7,7 @@ from xlsxwriter.workbook import Workbook
 # type hinting for lower version of python
 from typing import List, Dict
 
-from src.line_set import Line_Set
+from src.aligned import Line_Set
 from src.reference import Reference
 from src.indel_counter_for_genotype import InDel_Counter_for_Genotype
 import src.globals as glv

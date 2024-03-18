@@ -93,3 +93,23 @@ def get_row_of_global_variables():
            ["SCORE_MATCH", MAT, "SCORE_MISMATCH", MIS],
            ["SCORE_GAP_OPEN,", GAP_OPEN, "SCORE_GAP_EXTEND", GAP_EXTEND]]
     return row
+
+
+def get_opposite_strand(seq: str):
+    opposite = {
+        'A': 'T', 'T': 'A', 'G': 'C', 'C': 'G'
+    }
+
+    seq = seq.upper()
+    new_seq = ""
+    for s in seq[::-1]:
+        if s not in opposite.keys():
+            continue
+        new_seq += opposite[s]
+
+    return new_seq
+
+
+# for cas9
+PAM_IS_AFTER = True
+PAM_SEQ_REGEX_AS_DOWNSTREAM = r"[ATGC]GG"

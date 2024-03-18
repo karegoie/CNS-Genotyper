@@ -1,4 +1,4 @@
-from src.line_set import Line_Set
+from src.aligned import Line_Set
 from src.reference import Reference
 import src.globals as glv
 

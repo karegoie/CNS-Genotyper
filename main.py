@@ -10,9 +10,9 @@ import gzip
 from typing import List
 
 from src.reference import Reference
-from src.line_set import Line_Set
-from src.indel_counter_for_genotype import InDel_Counter_for_Genotype
-from src.log_writer import write_main_log, write_main_html_log, write_sub_log, write_main_csv_log, get_main_log_name, write_raw_data_log
+from src.aligned import Aligned_Key, Aligned_Read, Aligned
+# from src.indel_counter_for_genotype import InDel_Counter_for_Genotype
+# from src.log_writer import write_main_log, write_main_html_log, write_sub_log, write_main_csv_log, get_main_log_name, write_raw_data_log
 import src.globals as glv
 
 DATA_ADDRESS = "./data/"
@@ -24,18 +24,21 @@ REF_SET_ADDRESS = "./ref/reference_seq_set.fasta"
 # > total 800 nt of ref, 150 nt for a line: 40,000,000 for a second.
 
 
-def get_best_line_set(read: SeqIO.SeqRecord, reference_list: list):
+def get_best_aligned_key(seq_key: str, reference_list: list):
     if len(reference_list) == 0:
         return None
-    best_line_set = Line_Set(read_raw=read, reference=reference_list[0])
+    best_aligned_key = None
 
-    if len(reference_list) > 1:
-        for reference in reference_list[1:]:
-            test_line_set = Line_Set(read_raw=read, reference=reference)
+    for reference in reference_list:
+        test_aligned_key = Aligned_Key(key_seq=seq_key, reference=reference, strand='+')
+        if best_aligned_key is None or best_aligned_key.score < test_aligned_key.score:
+            best_aligned_key = test_aligned_key
 
-            if test_line_set.score > best_line_set.score:
-                best_line_set = test_line_set
-    return best_line_set
+        test_aligned_key = Aligned_Key(key_seq=glv.get_opposite_strand(seq_key), reference=reference, strand='-')
+        if best_aligned_key is None or best_aligned_key.score < test_aligned_key.score:
+            best_aligned_key = test_aligned_key
+
+    return best_aligned_key
 
 
 def get_reference_list_from_file():
@@ -97,11 +100,11 @@ def get_total_number_of_reads(data_file_list: List[str]):
     return total_reads_count, reads_count_list
 
 
-def key_for_sorting_err(line_set: Line_Set):
-    if line_set.indel_type == 'err':
-        return 1
-        # return len(line_set)
-    return 0
+# def key_for_sorting_err(line_set: Line_Set):
+#     if line_set.indel_type == 'err':
+#         return 1
+#         # return len(line_set)
+#     return 0
 
 
 def test_all_input_files():
@@ -118,24 +121,6 @@ def test_all_input_files():
     data_file_list = get_file_data_file_list()
     if len(data_file_list) > 0:
         is_data_exist = True
-        #
-        # testing all: takes too much times.
-        #
-        # for file_name in data_file_list:
-        #     if file_name[-5:] == str("file.fastq.gz")[-5:]:
-        #         read_raw_iter = SeqIO.parse(gzip.open(str(os.path.join(DATA_ADDRESS, file_name)), "rt"), "fastq")
-        #     elif file_name[-5:] == str(".fastq")[-5:]:
-        #         read_raw_iter = SeqIO.parse(os.path.join(DATA_ADDRESS, file_name), "fastq")
-        #     else:
-        #         continue
-        #
-        #     for i, read in enumerate(read_raw_iter):
-        #         seq = str(read.seq)
-        #         for a in seq:
-        #             if a not in 'ATGCatgcNX':
-        #                 print(read.name, seq)
-        #                 print("Something is wrong with read")
-        #         print(f"\r {i + 1}, {read.name}, {file_name}", end="")
 
     if os.path.exists(GUIDE_RNA_SET_ADDRESS):
         try:
@@ -181,6 +166,49 @@ def test_all_input_files():
     print("Please check the files and try again!")
     print("Terminating...")
     return False
+
+
+def get_seq_key(seq: str):
+    return seq[glv.ERR_PADDING_FOR_SEQ:-glv.ERR_PADDING_FOR_SEQ]
+
+
+def get_key_list_of_all_seq(data_file_list: list):
+
+    hashmap_seq_key = dict()
+
+    for file_no, file_name in enumerate(data_file_list):
+        print(file_no+1, file_name)
+
+        if file_name[-5:] == str("file.fastq.gz")[-5:]:
+            read_raw_iter = SeqIO.parse(gzip.open(str(os.path.join(DATA_ADDRESS, file_name)), "rt"), "fastq")
+        elif file_name[-5:] == str(".fastq")[-5:]:
+            read_raw_iter = SeqIO.parse(os.path.join(DATA_ADDRESS, file_name), "fastq")
+        else:
+            print(f"({file_no + 1}/{len(data_file_list)}) {file_name} is not readable: is it .fastq or .fastq.gz ?")
+            continue
+
+        for read_raw in read_raw_iter:
+            seq = str(read_raw.seq)
+            if len(seq) < glv.ERR_PADDING_FOR_SEQ * 2:
+                print(seq, "the length looks very wrong...")
+            seq_key = get_seq_key(seq)
+            hashmap_seq_key[seq_key] = None
+
+    key_list = list(hashmap_seq_key.keys())
+    print(len(key_list))
+    return key_list
+
+
+def get_aligned_hashmap(seq_key_list, reference_list):
+    hashmap = dict()
+    start_time = datetime.datetime.now()
+    for i, seq_key in enumerate(seq_key_list):
+        hashmap[seq_key] = get_best_aligned_key(seq_key, reference_list)
+        # print(seq_key, hashmap[seq_key])
+        if i%100 == 0:
+            print(i+1, datetime.datetime.now() - start_time, )
+
+    return hashmap
 
 
 @click.command()
@@ -241,41 +269,35 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
 
     is_good_to_go = test_all_input_files()
     if not is_good_to_go:
+        input("Press any key to finish...")
         return -1
 
     # Get sorted file address list from a folder, list[str]
     data_file_list = get_file_data_file_list()
-    print(f"File list: files with '.fastq.gz' or '.fastq' in {DATA_ADDRESS} only")
-    print(f"File list: ignoring keyword {glv.READ_IGNORE} in the name")
-    print(f"File list: {data_file_list}")
+    print(f"File list: files with '.fastq.gz' or '.fastq' in {DATA_ADDRESS} only\n"
+          f"File list: ignoring keyword {glv.READ_IGNORE} in the name\n"
+          f"File list: {data_file_list}")
     print()
-
     # get a list[Reference]
     reference_list = get_reference_list_from_file()
-
-    # for total result, making list[list[InDel_Counter]]
-    all_indel_counter_list_list = []
-
-    debug_data = {}
 
     # # # for counting expected time left,
     # # # count total number of reads,
     # # # count total number of finished number of reads,
     # # # and check the time of initiation
     '''This function will make a text print: opening large file takes some time'''
-    before_start_time = datetime.datetime.now()
-    total_reads_count, reads_count_list = get_total_number_of_reads(data_file_list=data_file_list)
-    finish_reads_count = 0
+    # before_start_time = datetime.datetime.now()
+    # total_reads_count, reads_count_list = get_total_number_of_reads(data_file_list=data_file_list)
+    # finish_reads_count = 0
     start_time = datetime.datetime.now()
 
-    print("counting all reads: ", start_time - before_start_time)
-    start_time_for_file_before = datetime.datetime.now()
+    seq_key_list = get_key_list_of_all_seq(data_file_list)
+    aligned_hashmap = get_aligned_hashmap(seq_key_list, reference_list)
+
     start_time_for_file = datetime.datetime.now()
 
-    # to show that the program is running by someone else in the folder:
-    # this will make a no_name file of 'using' the folder.
-    # file = open(os.path.join(DATA_ADDRESS, ".program_is_running_here"), 'w')
-    # file.close()
+    # for total result, making list[list[InDel_Counter]]
+    all_indel_counter_list_list = []
 
     for file_no, file_name in enumerate(data_file_list):
         '''
@@ -298,18 +320,18 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
                 for each indel_counter in list:
                     if line_set.ref == indel_counter.ref:
                         indel_counter.count(line_set) < count the each indel type
-        
         '''
-        # # # for counting expected time left
+
+        # for counting expected time left
         start_time_for_file_before = start_time_for_file
         start_time_for_file = datetime.datetime.now()
 
         # build list[InDel_Counter_For_Ref]
-        indel_counter_list = []
-        for reference in reference_list:
-            indel_counter = InDel_Counter_for_Genotype(reference=reference)
-            indel_counter.set_file_name(file_name=file_name)
-            indel_counter_list.append(indel_counter)
+        # indel_counter_list = []
+        # for reference in reference_list:
+        #     indel_counter = InDel_Counter_for_Genotype(reference=reference)
+        #     indel_counter.set_file_name(file_name=file_name)
+        #     indel_counter_list.append(indel_counter)
 
         if file_name[-5:] == str("file.fastq.gz")[-5:]:
             read_raw_iter = SeqIO.parse(gzip.open(str(os.path.join(DATA_ADDRESS, file_name)), "rt"), "fastq")
@@ -324,34 +346,43 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
         # not working...
 
         # build list[Bio.SeqRecord]
-        read_raw_list = [read_raw for read_raw in read_raw_iter]
-
         # build list[Line_Set]
         line_set_list = []
-        for i, read_raw in enumerate(read_raw_list):
+        for i, read_raw in enumerate(read_raw_iter):
 
-            # # # for showing expected time left
-            finish_reads_count += 1
+            print(read_raw_iter)
 
-            if (i % 100) == 0:
-                now_time = datetime.datetime.now()
-                delta_time = now_time - start_time
-                delta_count = finish_reads_count
-                if file_no > 0:
-                    delta_time = now_time - start_time_for_file_before
-                    delta_count = i + reads_count_list[file_no-1]
+            seq = str(read_raw.seq)
+            seq_key = get_seq_key(seq)
 
-                print(f"\r({file_no + 1}/{len(data_file_list)}) "
-                      f"for {file_name}: {((i+1)/len(read_raw_list)):.3f} / "
-                      f"remaining: {(delta_time/delta_count)*(total_reads_count-finish_reads_count)} "
-                      f"(for this file: {(delta_time/delta_count)*(len(read_raw_list)-(i+1))}) "
-                      f"(length: {len(read_raw_list)})                              ", end="")
+            aligned_key = aligned_hashmap[seq_key]
 
-            best_line_set = get_best_line_set(read_raw, reference_list)
-            best_line_set.set_file_name(file_name=file_name)
+            aligned_read = Aligned_Read(aligned_key, read_raw, file_name)
 
-            line_set_list.append(best_line_set)
+            print(aligned_read)
 
+            # # # # for showing expected time left
+            # finish_reads_count += 1
+            #
+            # if (i % 100) == 0:
+            #     now_time = datetime.datetime.now()
+            #     delta_time = now_time - start_time
+            #     delta_count = finish_reads_count
+            #     if file_no > 0:
+            #         delta_time = now_time - start_time_for_file_before
+            #         delta_count = i + reads_count_list[file_no-1]
+            #
+            #     print(f"\r({file_no + 1}/{len(data_file_list)}) "
+            #           f"for {file_name}: {((i+1)/len(read_raw_list)):.3f} / "
+            #           f"remaining: {(delta_time/delta_count)*(total_reads_count-finish_reads_count)} "
+            #           f"(for this file: {(delta_time/delta_count)*(len(read_raw_list)-(i+1))}) "
+            #           f"(length: {len(read_raw_list)})                              ", end="")
+            #
+            # best_line_set = get_best_line_set(read_raw, reference_list)
+            # best_line_set.set_file_name(file_name=file_name)
+            #
+            # line_set_list.append(best_line_set)
+'''
         # # # for showing expected time left / while log writing
         print(f"\r({file_no + 1}/{len(data_file_list)}) for {file_name}: Complete / "
               f"Writing log files (length: {len(line_set_list)})                              ", end="")
@@ -433,7 +464,8 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
 
     #
     if glv.OPEN_XLSX_AUTO:
-        os.system(f"start EXCEL.EXE {get_main_log_name('xlsx')}")
+        os.system(f"start EXCEL.EXE {get_main_log_name('xlsx')}")'''
+
 
 
 if __name__ == '__main__':
