@@ -94,8 +94,8 @@ class Reference:
         self.guide_rna_seq = guide_rna_seq
         self.ref_pos_line = ref_pos_line
 
-        self.ref_name = ref_raw.name
-        self.guide_rna_name = guide_rna_raw.name
+        self.ref_name = str(ref_raw.name)
+        self.guide_rna_name = str(guide_rna_raw.name)
 
         print(ref_seq)
         print(ref_pos_line)

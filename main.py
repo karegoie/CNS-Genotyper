@@ -175,6 +175,7 @@ def get_seq_key(seq: str):
 def get_key_list_of_all_seq(data_file_list: list):
 
     hashmap_seq_key = dict()
+    total_reads = 0
 
     for file_no, file_name in enumerate(data_file_list):
         print(file_no+1, file_name)
@@ -188,15 +189,15 @@ def get_key_list_of_all_seq(data_file_list: list):
             continue
 
         for read_raw in read_raw_iter:
+            total_reads += 1
             seq = str(read_raw.seq)
-            if len(seq) < glv.ERR_PADDING_FOR_SEQ * 2:
+            if len(seq) < glv.ERR_PADDING_FOR_SEQ * 2 + 10:
                 print(seq, "the length looks very wrong...")
             seq_key = get_seq_key(seq)
             hashmap_seq_key[seq_key] = None
 
     key_list = list(hashmap_seq_key.keys())
-    print(len(key_list))
-    return key_list
+    return key_list, total_reads
 
 
 def get_aligned_hashmap(seq_key_list, reference_list):
@@ -287,15 +288,15 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
     # # # count total number of finished number of reads,
     # # # and check the time of initiation
     '''This function will make a text print: opening large file takes some time'''
-    # before_start_time = datetime.datetime.now()
+    # # before_start_time = datetime.datetime.now()
     # total_reads_count, reads_count_list = get_total_number_of_reads(data_file_list=data_file_list)
-    # finish_reads_count = 0
     start_time = datetime.datetime.now()
 
-    seq_key_list = get_key_list_of_all_seq(data_file_list)
+    seq_key_list, total_reads_count = get_key_list_of_all_seq(data_file_list)
+    finish_reads_count = 0
     aligned_hashmap = get_aligned_hashmap(seq_key_list, reference_list)
-
-    start_time_for_file = datetime.datetime.now()
+    print(f"Total reads: {total_reads_count}\n"
+          f"Total unique reads: {len(seq_key_list)}\n")
 
     # for total result, making list[list[genotyper]]
     all_genotyper_list_list = []
@@ -303,30 +304,6 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
     debug_data = dict()
 
     for file_no, file_name in enumerate(data_file_list):
-        '''
-        For each file, This happens:
-            get a list of 'reads' from file (NGS-fastq only),
-            
-            for each read:
-                for each reference:
-                    (make aligned_read from 1 read and 1 reference)
-                    make possible aligns with each reference sequences,
-                    align the phred score line,
-                    get the position of guide_RNA and PAM sequence,
-                    get the indel type by checking around the PAM starting point,
-                    get the score(mismatch ratio without main indel) and check if it is error seq or not.
-                
-                pick the best aligned aligned_read by score, 
-                and add it to the list.
-                
-            for each aligned_read in list:
-                for each genotyper in list:
-                    if aligned_read.ref == genotyper.ref:
-                        genotyper.count(aligned_read) < count the each indel type
-        '''
-
-        # for counting expected time left
-        start_time_for_file_before = start_time_for_file
         start_time_for_file = datetime.datetime.now()
 
         # build list[genotyper_For_Ref]
@@ -349,7 +326,8 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
 
         # build list[Aligned_Read]        
         aligned_read_list = []
-        for i, read_raw in enumerate(read_raw_iter):
+        read_raw_list = [read_raw for read_raw in read_raw_iter]
+        for i, read_raw in enumerate(read_raw_list):
 
             seq = str(read_raw.seq)
             seq_key = get_seq_key(seq)
@@ -359,29 +337,22 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
             else:
                 aligned_read = Aligned_Read(aligned_key, read_raw, file_name)
 
+            # print(aligned_read)
             aligned_read_list.append(aligned_read)
 
             # # # # for showing expected time left
-            # finish_reads_count += 1
-            #
-            # if (i % 100) == 0:
-            #     now_time = datetime.datetime.now()
-            #     delta_time = now_time - start_time
-            #     delta_count = finish_reads_count
-            #     if file_no > 0:
-            #         delta_time = now_time - start_time_for_file_before
-            #         delta_count = i + reads_count_list[file_no-1]
-            #
-            #     print(f"\r({file_no + 1}/{len(data_file_list)}) "
-            #           f"for {file_name}: {((i+1)/len(read_raw_list)):.3f} / "
-            #           f"remaining: {(delta_time/delta_count)*(total_reads_count-finish_reads_count)} "
-            #           f"(for this file: {(delta_time/delta_count)*(len(read_raw_list)-(i+1))}) "
-            #           f"(length: {len(read_raw_list)})                              ", end="")
-            #
-            # best_aligned_read = get_best_aligned_read(read_raw, reference_list)
-            # best_aligned_read.set_file_name(file_name=file_name)
-            #
-            # aligned_read_list.append(best_aligned_read)
+            finish_reads_count += 1
+
+            if (i % 100) == 0:
+                now_time = datetime.datetime.now()
+                delta_time = now_time - start_time
+                delta_count = finish_reads_count
+
+                print(f"\r({file_no + 1}/{len(data_file_list)}) "
+                      f"for {file_name}: {((i+1)/len(read_raw_list)):.3f} / "
+                      f"remaining: {(delta_time/delta_count)*(total_reads_count-finish_reads_count)} "
+                      f"(for this file: {(delta_time/delta_count)*(len(read_raw_list)-(i+1))}) "
+                      f"(length: {len(read_raw_list)})                              ", end="")
 
         # # # for showing expected time left / while log writing
         print(f"\r({file_no + 1}/{len(data_file_list)}) for {file_name}: Complete / "
@@ -450,8 +421,8 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
         # end.
 
     # Writing total log
-    write_main_log(genotyper_list_list=all_genotyper_list_list, total_length=len(seq_key_list))
-    write_main_html_log(genotyper_list_list=all_genotyper_list_list, total_length=len(seq_key_list))
+    write_main_log(genotyper_list_list=all_genotyper_list_list, total_length=total_reads_count)
+    write_main_html_log(genotyper_list_list=all_genotyper_list_list, total_length=total_reads_count)
     write_main_csv_log(genotyper_list_list=all_genotyper_list_list, ref_set_list=reference_list)
     write_raw_data_log(genotyper_list_list=all_genotyper_list_list, debug_data=debug_data)
 

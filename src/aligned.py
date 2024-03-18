@@ -149,9 +149,12 @@ class Indel_Type:
     def __str__(self):
         return f"{self.indel_type} ({self.indel_reason})"
 
-    def test_err(self, score: float):
-        if (1 - score) < glv.ERR_RATIO_MAX:
-            return
+    def test_err(self, score: float, align_result: Aligned, reference: Reference):
+        pos_line = align_result.pos_line.replace('(', '>').replace(')', '>').replace(' ', '').replace('-', '')
+
+        if pos_line.find('><') > 0:
+            if (1 - score) < glv.ERR_RATIO_MAX:
+                return
 
         self.indel_type = 'err'
         self.indel_pos = 0
@@ -201,7 +204,7 @@ class Aligned_Key(Aligned):
         score = get_score(match_line=align_result.match_line, indel_length=indel.indel_length)
         int_score = int((score-1)*1000)
 
-        indel.test_err(score=score)
+        indel.test_err(score, align_result, reference)
 
         # set variables below
         self.pos_line = align_result.pos_line
@@ -309,6 +312,9 @@ def get_pos_line_untrimmed(ref_line_untrimmed: str, ref_pos_line: str):
 
 
 def get_alignment(ref_seq: str, read_seq: str):
+    if len(read_seq) == 0:
+        read_seq = 'A'
+
     aligner = PairwiseAligner()
     matrix = substitution_matrices.Array(data=glv.get_align_matrix_for_subsequence_positioning())
     aligner.substitution_matrix = matrix

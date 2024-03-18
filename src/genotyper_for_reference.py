@@ -180,6 +180,13 @@ def get_simple_example_lines(sorted_best_example_tuple: list, self: Genotyper_Fo
     while i < len(wt_seq):
         is_added = False
         for key in sample_set.keys():
+            print(len(wt_seq), key)
+            print(sample_set[key]["pos_line"])
+            print(sample_set[key]["ref_line"])
+            print(sample_set[key]["match_line"])
+            print(sample_set[key]["read_line"])
+            if not len(sample_set[key]["match_line"]) > i:
+                print(i, sample_set[key]["match_line"])
             if sample_set[key]["match_line"][i] == '+':
                 is_added = True
         if is_added:
