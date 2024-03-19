@@ -5,6 +5,7 @@ import os
 import click
 from Bio import SeqIO
 import gzip
+import configparser
 
 # type hinting for lower version of python
 from typing import List
@@ -19,9 +20,12 @@ DATA_ADDRESS = "./data/"
 REF_ADDRESS = "./ref/"
 GUIDE_RNA_SET_ADDRESS = "./ref/guide_RNA_set.txt"
 REF_SET_ADDRESS = "./ref/reference_seq_set.txt"
+CONFIG_ADDRESS = "./config.txt"
 
 # with spans, 3 second for 1000 lines: 20000 for a minute, 1,000,000 ~ 1,500,000 for an hour
 # > total 800 nt of ref, 150 nt for a line: 40,000,000 for a second.
+
+# Now it works like, 2,000,000 reads for only 10 minutes.
 
 
 def get_best_aligned_key(seq_key: str, reference_list: list):
@@ -210,6 +214,7 @@ def get_aligned_hashmap(seq_key_list, reference_list):
             print("\r", i+1, datetime.datetime.now() - start_time,
                   (datetime.datetime.now() - start_time) * (len(seq_key_list) - (i+1)) / (i+1), "             ", end="")
 
+    print()
     return hashmap
 
 
@@ -217,29 +222,29 @@ def get_aligned_hashmap(seq_key_list, reference_list):
 @click.option('-x', '--read_ignore', default=['R2', 'Undetermined'], multiple=True,
               help=glv.EXPLANATION_MAP['read_ignore'])
 #
-@click.option('-e', '--err_ratio_max', default=0.03,
+@click.option('-e', '--err_ratio_max', default=glv.ERR_RATIO_MAX,
               help=glv.EXPLANATION_MAP['err_ratio_max'])
-@click.option('-p', '--err_padding_for_seq', default=1,
+@click.option('-p', '--err_padding_for_seq', default=glv.ERR_PADDING_FOR_SEQ,
               help=glv.EXPLANATION_MAP['err_padding_for_seq'])
-@click.option('-d', '--cut_pos_from_pam', default=-3,
+@click.option('-d', '--cut_pos_from_pam', default=glv.CUT_POS_FROM_PAM,
               help=glv.EXPLANATION_MAP['cut_pos_from_pam'])
-@click.option('-r', '--cut_pos_radius', default=5,
+@click.option('-r', '--cut_pos_radius', default=glv.CUT_POS_RADIUS,
               help=glv.EXPLANATION_MAP['cut_pos_radius'])
-@click.option('-s', '--phred_meaningful_score_min', default=30,
+@click.option('-s', '--phred_meaningful_score_min', default=glv.PHRED_MEANINGFUL_MIN,
               help=glv.EXPLANATION_MAP['phred_meaningful_score_min'])
 #
-@click.option('--pam_distance_max', default=5,
+@click.option('--pam_distance_max', default=glv.PAM_DISTANCE_MAX,
               help=glv.EXPLANATION_MAP['pam_distance_max'])
-@click.option('--score_match', default=2,
+@click.option('--score_match', default=glv.MAT,
               help=glv.EXPLANATION_MAP['score_match'])
-@click.option('--score_mismatch', default=-1,
+@click.option('--score_mismatch', default=glv.MIS,
               help=glv.EXPLANATION_MAP['score_mismatch'])
-@click.option('--score_gap_open', default=-30,
+@click.option('--score_gap_open', default=glv.GAP_OPEN,
               help=glv.EXPLANATION_MAP['score_gap_open'])
-@click.option('--score_gap_extend', default=-4,
+@click.option('--score_gap_extend', default=glv.GAP_EXTEND,
               help=glv.EXPLANATION_MAP['score_gap_extend'])
 #
-@click.option('-t', '--task_title', default="task " + str(datetime.datetime.now())[5:-10],
+@click.option('-t', '--task_title', default=glv.TASK_TITLE,
               help=glv.EXPLANATION_MAP['task_title'])
 @click.option('-o', '--open_xlsx_auto', default=False, is_flag=True,
               help=glv.EXPLANATION_MAP['open_xlsx_auto'])
@@ -278,8 +283,8 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
     data_file_list = get_file_data_file_list()
     print(f"File list: files with '.fastq.gz' or '.fastq' in {DATA_ADDRESS} only\n"
           f"File list: ignoring keyword {glv.READ_IGNORE} in the name\n"
-          f"File list: {data_file_list}")
-    print()
+          f"File list: {data_file_list}\n")
+
     # get a list[Reference]
     reference_list = get_reference_list_from_file()
 
@@ -365,14 +370,6 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
                 if genotyper.ref_name == aligned_read.ref_name:
                     genotyper.count(aligned_read)
 
-        # # save the indel type count to each line set
-        # # just for the log file
-        # for aligned_read in aligned_read_list:
-        #     for genotyper in genotyper_list:
-        #         if genotyper.ref_name == aligned_read.ref_name:
-        #             aligned_read.set_indel_same_type_count(genotyper.count_map)
-
-        #
         # add the file result to the total result
         all_genotyper_list_list.append(genotyper_list)
 
@@ -406,12 +403,6 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
                     if aligned_read.match_line[i] != '|':
                         pos_error_count[i] += 1
 
-            debug_data[file_name] = {
-                'length': len(aligned_read_list),
-                'pos_phred_score': pos_phred_score,
-                'pos_error_count': pos_error_count
-            }
-
         # # for showing time used
         end_time_for_file = datetime.datetime.now()
         print(f"\r({file_no + 1}/{len(data_file_list)}) for {file_name}: Complete / Log written / "
@@ -435,7 +426,7 @@ def main(read_ignore, err_ratio_max, err_padding_for_seq, cut_pos_from_pam, cut_
     #
     if glv.OPEN_XLSX_AUTO:
         os.system(f"start EXCEL.EXE {get_main_log_name('xlsx')}")
-    input("Press enter to finish the program...")
+    # input("Press enter to finish the program...")
 
 
 if __name__ == '__main__':

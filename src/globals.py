@@ -1,3 +1,5 @@
+import datetime
+
 VERSION = '1.5.0 b1'
 
 # Set of Global Variables for editing things:
@@ -8,7 +10,7 @@ EXPLANATION_MAP[''] = ""
 # 2 variables for user experience
 global TASK_TITLE, OPEN_XLSX_AUTO, READ_IGNORE, DEBUG
 
-TASK_TITLE = ""
+TASK_TITLE = "task " + str(datetime.datetime.now())[5:-10]
 OPEN_XLSX_AUTO = False
 READ_IGNORE = ['R2', 'Undetermined']
 DEBUG = False

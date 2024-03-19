@@ -1,0 +1,8 @@
+[main_config]
+a = 123
+b = True
+c = "R2"
+d = ['a', 'b']
+
+[advanced_config]
+e = nonononono
