@@ -3,8 +3,9 @@ from src.reference import Reference
 import src.globals as glv
 
 # Variables for validation
-HOMO_RATIO_MIN = 0.8
-HETERO_RATIO_MIN = 0.35
+HOMO_RATIO_MIN = 0.75
+HOMO_DOMINANCE_MIN = 3
+HETERO_RATIO_MIN = 0.33
 THIRD_RATIO_MAX = 0.02
 ERR_RATIO_MAX = 0.1
 ERR_ONLY_WARNING_RATIO_MIN = 0.7
@@ -274,16 +275,6 @@ def get_simple_example_aligned_read(aligned_read: Aligned_Read):
     simple_match_line = aligned_read.match_line[p1:p2]
     simple_pos_line = aligned_read.pos_line[p1:p2].replace('(','>').replace(')','>').replace('|',' ')
 
-    #
-    # if glv.DEBUG:
-    #     print(aligned_read.read_name)
-    #     print(std_pos, rna_pos, rna_len, ins_up, ins_down)
-    #     print(simple_pos_line)
-    #     print(simple_ref_line)
-    #     print(simple_match_line)
-    #     print(simple_read_line)
-    #     print()
-
     return {"ref_line": simple_ref_line,
             "read_line": simple_read_line,
             "match_line": simple_match_line,
@@ -295,24 +286,31 @@ class Genotype:
     warning = ""
     allele1_name = ""
     allele2_name = ""
-    allele1_ratio = 0
-    allele2_ratio = 0
+    allele3_name = ""
+    allele1_ratio = 0.0
+    allele2_ratio = 0.0
+    allele3_ratio = 0.0
     allele_set_text = ""
     allele_set_shape = ""
+    ignore = False
 
     def __init__(self, genotyper: Genotyper_For_Reference, sorted_count_tuple_list: list):
+        self.ignore = False
 
         if genotyper.get_len(with_err=False) < READ_MIN:
             self.append_warning("Reads not enough")
+            self.ignore = True
 
         if (genotyper.count_map['err'] / (len(genotyper) + Z)) > ERR_ONLY_WARNING_RATIO_MIN:
             self.append_warning("Error ratio too high")
+            self.ignore = True
 
         # now, set the main genotype
         if len(sorted_count_tuple_list) < 2:
             self.name = "err"
             self.allele1_name = self.allele2_name = 'err'
             self.append_warning("Error only")
+            self.ignore = True
 
         elif len(sorted_count_tuple_list) < 3:
             self.name = "homo"
@@ -330,11 +328,14 @@ class Genotype:
                     elif self.allele2_ratio == 0:
                         self.allele2_name = key
                         self.allele2_ratio = round(value / genotyper.get_len(with_err=False), 3)
+                    elif self.allele3_ratio == 0:
+                        self.allele3_name = key
+                        self.allele3_ratio = round(value / genotyper.get_len(with_err=False), 3)
                     else:
                         break
-            if self.allele1_ratio > HOMO_RATIO_MIN:
+            if self.allele1_ratio > self.allele2_ratio * HOMO_DOMINANCE_MIN:
                 self.name = "homo"
-            elif self.allele2_ratio > HETERO_RATIO_MIN:
+            elif self.allele2_ratio > self.allele3_ratio * HOMO_DOMINANCE_MIN:
                 self.name = "hetero"
             else:
                 self.name = "ambiguous"
@@ -353,15 +354,15 @@ class Genotype:
             self.allele_set_text = self.allele1_name + "/" + self.allele1_name
 
         if self.name == 'ambiguous':
-            self.allele_set_text = self.allele1_name + "/" + self.allele2_name
+            self.allele_set_text = self.allele1_name + "-" + self.allele2_name + '-' + self.allele3_name
             self.allele_set_shape = 'err'
 
         if self.name == 'hetero':
             if 'WT' in (self.allele1_name, self.allele2_name):
-                self.allele_set_shape = '-/+'
+                self.allele_set_shape = '+/-'
             else:
                 self.allele_set_shape = '1/2'
-            self.allele_set_text = self.allele1_name + "/" + self.allele2_name
+            self.allele_set_text = "WT/" + str(self.allele1_name+self.allele2_name).replace('WT','')
 
         # appending warning messages
         # err ratio
@@ -392,9 +393,9 @@ class Genotype:
         string = ""
         if self.name in ('hetero', 'ambiguous'):
             string = f"{self.name}({self.allele_set_shape}) of " \
-                     f"{self.allele1_name}({self.allele1_ratio:.3f} without err) and " \
-                     f"{self.allele2_name}({self.allele2_ratio:.3f} without err) " \
-                     f"(sum: {(self.allele1_ratio + self.allele2_ratio):.3f})"
+                     f"{self.allele1_name}({self.allele1_ratio:.3f}) and " \
+                     f"{self.allele2_name}({self.allele2_ratio:.3f}) " \
+                     f"(sum: {(self.allele1_ratio + self.allele2_ratio):.3f} without err)"
         else:
             string = f"{self.name}({self.allele_set_shape}) of " \
                      f"{self.allele1_name}({self.allele1_ratio:.3f} without err)"
