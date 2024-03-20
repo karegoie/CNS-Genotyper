@@ -354,7 +354,7 @@ class Genotype:
             self.allele_set_text = self.allele1_name + "/" + self.allele1_name
 
         if self.name == 'ambiguous':
-            self.allele_set_text = self.allele1_name + "-" + self.allele2_name + '-' + self.allele3_name
+            self.allele_set_text = self.allele1_name + "." + self.allele2_name + '.' + self.allele3_name
             self.allele_set_shape = 'err'
 
         if self.name == 'hetero':
@@ -362,7 +362,9 @@ class Genotype:
                 self.allele_set_shape = '+/-'
             else:
                 self.allele_set_shape = '1/2'
-            self.allele_set_text = "WT/" + str(self.allele1_name+self.allele2_name).replace('WT','')
+            self.allele_set_text = self.allele1_name + '/' + self.allele2_name
+            if 'WT' in (self.allele1_name, self.allele2_name):
+                self.allele_set_text = "WT/" + self.allele_set_text.replace('WT','').replace('/','')
 
         # appending warning messages
         # err ratio
