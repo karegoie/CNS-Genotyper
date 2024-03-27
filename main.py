@@ -89,25 +89,25 @@ def get_file_data_file_list():
     return data_file_list
 
 
-def get_total_number_of_reads(data_file_list: List[str]):
-    total_reads_count = 0
-    reads_count_list = []
-    for i, file_name in enumerate(data_file_list):
-        reads_count = 0
-        print(f"\r({i + 1}/{len(data_file_list)}) reading {file_name}", end="")
-
-        if file_name[-5:] == str("file.fastq.gz")[-5:]:
-            read_raw_iter = SeqIO.parse(gzip.open(str(os.path.join(DATA_ADDRESS, file_name)), "rt"), "fastq")
-        else:
-            read_raw_iter = SeqIO.parse(os.path.join(DATA_ADDRESS, file_name), "fastq")
-
-        for _ in read_raw_iter:
-            reads_count += 1
-            total_reads_count += 1
-        reads_count_list.append(reads_count)
-    print(f"\rTotal reads :{total_reads_count} for {len(data_file_list)} files                     ")
-    print()
-    return total_reads_count, reads_count_list
+# def get_total_number_of_reads(data_file_list: List[str]):
+#     total_reads_count = 0
+#     reads_count_list = []
+#     for i, file_name in enumerate(data_file_list):
+#         reads_count = 0
+#         print(f"\r({i + 1}/{len(data_file_list)}) reading {file_name}", end="")
+#
+#         if file_name[-5:] == str("file.fastq.gz")[-5:]:
+#             read_raw_iter = SeqIO.parse(gzip.open(str(os.path.join(DATA_ADDRESS, file_name)), "rt"), "fastq")
+#         else:
+#             read_raw_iter = SeqIO.parse(os.path.join(DATA_ADDRESS, file_name), "fastq")
+#
+#         for _ in read_raw_iter:
+#             reads_count += 1
+#             total_reads_count += 1
+#         reads_count_list.append(reads_count)
+#     print(f"\rTotal reads :{total_reads_count} for {len(data_file_list)} files                     ")
+#     print()
+#     return total_reads_count, reads_count_list
 
 
 def key_for_sorting_err(aligned_read: Aligned_Read):
@@ -186,7 +186,7 @@ def get_key_list_of_all_seq(data_file_list: list):
     total_reads = 0
 
     for file_no, file_name in enumerate(data_file_list):
-        print(file_no + 1, file_name)
+        print(f"\r({file_no + 1}/{len(data_file_list)}) reading {file_name}           ", end="")
 
         if file_name[-5:] == str("file.fastq.gz")[-5:]:
             read_raw_iter = SeqIO.parse(gzip.open(str(os.path.join(DATA_ADDRESS, file_name)), "rt"), "fastq")
@@ -200,26 +200,29 @@ def get_key_list_of_all_seq(data_file_list: list):
             total_reads += 1
             seq = str(read_raw.seq)
             if len(seq) < glv.ERR_PADDING_FOR_SEQ * 2 + 10:
-                print(seq, "the length looks very wrong...")
+                print("\n", seq, "the length looks very wrong...")
             seq_key = get_seq_key(seq)
             hashmap_seq_key[seq_key] = None
 
     key_list = list(hashmap_seq_key.keys())
 
     print(f"Total reads: {total_reads}\n"
-          f"Total unique reads: {len(key_list)}\n")
+          f"Total unique reads: {len(key_list)}")
     return key_list, total_reads
 
 
 def get_aligned_hashmap(seq_key_list, reference_list):
+    print("\n")
     hashmap = dict()
     start_time = datetime.datetime.now()
     for i, seq_key in enumerate(seq_key_list):
         hashmap[seq_key] = get_best_aligned_key(seq_key, reference_list)
         # print(seq_key, hashmap[seq_key])
         if i % 100 == 0:
-            print("\r", i + 1, datetime.datetime.now() - start_time,
-                  (datetime.datetime.now() - start_time) * (len(seq_key_list) - (i + 1)) / (i + 1), "             ",
+            print(f"\rUnique Sequencing aligning: {(i + 1) / len(seq_key_list):.03f} / "
+                  f"remaining: {(datetime.datetime.now() - start_time) * (len(seq_key_list) - (i + 1)) / (i + 1)} "
+                  f"({datetime.datetime.now() - start_time} is passed) "
+                  f"(length: {len(seq_key_list)})                        ",
                   end="")
 
     print()
@@ -292,7 +295,7 @@ def get_aligned_read_list_for_file(file_no, file_name, aligned_hashmap, total_fi
         # # # # for showing expected time left
         finish_reads_count += 1
 
-        if (i % 100) == 0:
+        if (i % 1000) == 0:
             now_time = datetime.datetime.now()
             delta_time = now_time - start_time_3
             delta_count = finish_reads_count

@@ -1,6 +1,6 @@
 import datetime
 
-VERSION = '1.5.0 b1'
+VERSION = '1.5.0'
 
 # Set of Global Variables for editing things:
 global EXPLANATION_MAP

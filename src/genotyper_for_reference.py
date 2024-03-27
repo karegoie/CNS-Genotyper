@@ -11,9 +11,6 @@ ERR_RATIO_MAX = 0.1
 ERR_ONLY_WARNING_RATIO_MIN = 0.7
 READ_MIN = 30
 
-# Variables for showing awesome simple result!
-MARGIN_FOR_SAMPLE = 5
-
 # Variables for uh... zero division
 Z = 0.000000001
 DICT_ERR_NT = {
