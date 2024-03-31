@@ -17,6 +17,7 @@ from src.genotyper_for_reference import Genotyper_For_Reference
 from src.log_writer import write_main_log, write_main_html_log, write_sub_log, write_main_csv_log, get_main_log_name, \
     write_raw_data_log
 import src.globals as glv
+# TODO: use asnycio module for faster processing
 
 DATA_ADDRESS = "./data/"
 REF_ADDRESS = "./ref/"
